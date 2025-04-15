@@ -2,13 +2,13 @@ package handlers
 
 import (
 	"bytes"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
+	"quickyexpensetracker/services"
+	"quickyexpensetracker/utils"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -43,6 +43,15 @@ func HandleVerification(c *gin.Context) {
 }
 
 func HandleWebhook(c *gin.Context) {
+	log.Println("Received webhook event")
+	rawBody, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Error reading body"})
+		return
+	}
+
+	c.Request.Body = io.NopCloser(bytes.NewBuffer(rawBody))
+
 	var body map[string]interface{}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
@@ -53,7 +62,6 @@ func HandleWebhook(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid object"})
 		return
 	}
-
 	if c.ContentType() != "application/json" {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Invalid content type"})
 		return
@@ -74,10 +82,7 @@ func HandleWebhook(c *gin.Context) {
 		return
 	}
 
-	rawBody, _ := c.GetRawData()
-	c.Request.Body = io.NopCloser(bytes.NewBuffer(rawBody))
-
-	hash := computeHMAC(rawBody, key)
+	hash := utils.ComputeHMAC(rawBody, key)
 	mySignature := "sha256=" + hash
 	if fbSignature != mySignature {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid signature"})
@@ -91,7 +96,6 @@ func HandleWebhook(c *gin.Context) {
 	}
 
 	var userInstances []UserInstance
-
 	for _, entry := range entries {
 		entryMap, ok := entry.(map[string]interface{})
 		if !ok {
@@ -115,7 +119,6 @@ func HandleWebhook(c *gin.Context) {
 				continue
 			}
 			user.PSID = psid
-
 			var command string
 			var mid string
 
@@ -124,12 +127,18 @@ func HandleWebhook(c *gin.Context) {
 					command, _ = val["payload"].(string)
 				}
 				mid, _ = message["mid"].(string)
+
+				if text, ok := message["text"].(string); ok {
+					fmt.Printf("Received message from PSID %s: %s\n", psid, text)
+				}
 			}
 
 			if command == "" {
 				if postback, ok := msgMap["postback"].(map[string]interface{}); ok {
 					command, _ = postback["payload"].(string)
 					mid, _ = postback["mid"].(string)
+
+					fmt.Printf("Received postback from PSID %s: %s\n", psid, command)
 				}
 			}
 
@@ -144,6 +153,8 @@ func HandleWebhook(c *gin.Context) {
 				continue
 			}
 
+			fmt.Printf("Processing command from PSID %s: %s\n", psid, command)
+
 			user.Command = strings.ToUpper(command)
 			user.MID = mid
 			userInstances = append(userInstances, user)
@@ -157,17 +168,6 @@ func HandleWebhook(c *gin.Context) {
 	}
 
 	for _, user := range userInstances {
-		processCommand(user.Command, user.PSID, user.MID, pageAccessToken)
+		services.ProcessCommand(user.Command, user.PSID, user.MID, pageAccessToken)
 	}
-}
-
-func computeHMAC(message []byte, secret string) string {
-	h := hmac.New(sha256.New, []byte(secret))
-	h.Write(message)
-	return hex.EncodeToString(h.Sum(nil))
-}
-
-func processCommand(command, psid, mid, token string) {
-	fmt.Printf("Processing Command: %s, PSID: %s, MID: %s\n", command, psid, mid)
-	fmt.Printf("token: %s\n", token)
 }

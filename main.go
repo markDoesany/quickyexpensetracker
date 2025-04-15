@@ -18,7 +18,7 @@ func main() {
 
 	router := gin.Default()
 	router.GET("/", handlers.HandleVerification)
-	router.POST("/webhook", handlers.HandleWebhook)
+	router.POST("/", handlers.HandleWebhook)
 
 	router.Run(":8080")
 }
