@@ -18,6 +18,7 @@ type UserInstance struct {
 	PSID    string
 	Command string
 	MID     string
+	Source  string
 }
 
 func HandleVerification(c *gin.Context) {
@@ -121,15 +122,18 @@ func HandleWebhook(c *gin.Context) {
 			user.PSID = psid
 			var command string
 			var mid string
+			var source string
 
 			if message, ok := msgMap["message"].(map[string]interface{}); ok {
 				if val, ok := message["quick_reply"].(map[string]interface{}); ok {
 					command, _ = val["payload"].(string)
+					source = "PAYLOAD"
 				}
 				mid, _ = message["mid"].(string)
 
 				if text, ok := message["text"].(string); ok {
 					fmt.Printf("Received message from PSID %s: %s\n", psid, text)
+					source = "MESSAGE"
 				}
 			}
 
@@ -137,7 +141,7 @@ func HandleWebhook(c *gin.Context) {
 				if postback, ok := msgMap["postback"].(map[string]interface{}); ok {
 					command, _ = postback["payload"].(string)
 					mid, _ = postback["mid"].(string)
-
+					source = "PAYLOAD"
 					fmt.Printf("Received postback from PSID %s: %s\n", psid, command)
 				}
 			}
@@ -145,6 +149,7 @@ func HandleWebhook(c *gin.Context) {
 			if command == "" {
 				if message, ok := msgMap["message"].(map[string]interface{}); ok {
 					command, _ = message["text"].(string)
+					source = "MESSAGE"
 				}
 			}
 
@@ -155,8 +160,9 @@ func HandleWebhook(c *gin.Context) {
 
 			fmt.Printf("Processing command from PSID %s: %s\n", psid, command)
 
-			user.Command = strings.ToUpper(command)
+			user.Command = command
 			user.MID = mid
+			user.Source = source
 			userInstances = append(userInstances, user)
 		}
 	}
@@ -168,6 +174,11 @@ func HandleWebhook(c *gin.Context) {
 	}
 
 	for _, user := range userInstances {
-		services.ProcessCommand(user.Command, user.PSID, user.MID, pageAccessToken)
+		if user.Source == "PAYLOAD" {
+			user.Command = strings.ToUpper(user.Command)
+			services.ProcessMainCommand(user.Command, user.PSID, user.MID, pageAccessToken)
+		} else if user.Source == "MESSAGE" {
+			services.ProcessTextMessageReceived(user.Command, user.PSID, user.MID, pageAccessToken)
+		}
 	}
 }
