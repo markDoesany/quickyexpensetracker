@@ -33,10 +33,8 @@ func GetReminderDataFromMessage(message string) (amount float64, accountName str
 	}
 	amountString := strings.TrimSpace(parts[0])
 	amount, err = strconv.ParseFloat((amountString), 64)
-	fmt.Printf("Amount %v", amount)
 	if err != nil {
 		err = fmt.Errorf("invalid amount format")
-		fmt.Printf("%v", amount)
 		return
 	}
 

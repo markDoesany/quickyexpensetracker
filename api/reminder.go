@@ -35,3 +35,8 @@ func GetReminders(userID string, status string) ([]models.RemindersLog, error) {
 	result := query.Find(&reminders)
 	return reminders, result.Error
 }
+
+func DeleteRemindersByUser(userID string) error {
+	result := database.DB.Where("user_id = ?", userID).Delete(&models.RemindersLog{})
+	return result.Error
+}

@@ -19,7 +19,12 @@ func GetExpenseReport(expenses []models.ExpensesLog, rangeDay string) string {
 	report := fmt.Sprintf("%v Report\n", rangeDay)
 	report += fmt.Sprintf("Total: %.2f\n", total)
 	for category, amount := range categoryTotals {
-		percentage := (amount / total) * 100
+		var percentage float64
+		if total > 0 {
+			percentage = (amount / total) * 100
+		} else {
+			percentage = 0 // Or handle as appropriate, e.g. display N/A
+		}
 		report += fmt.Sprintf("%s = ₱%.2f - %.2f%%\n", category, amount, percentage)
 	}
 

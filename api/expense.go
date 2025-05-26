@@ -43,3 +43,8 @@ func GetExpensesByUserAndRange(userID string, rangeType string) ([]models.Expens
 
 	return expenses, result.Error
 }
+
+func DeleteExpensesByUser(userID string) error {
+	result := database.DB.Where("user_id = ?", userID).Delete(&models.ExpensesLog{})
+	return result.Error
+}
