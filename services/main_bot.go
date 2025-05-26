@@ -13,7 +13,6 @@ var currentTime = time.Now()
 
 func ProcessMainCommand(command, psid, mid, token string) {
 	fmt.Printf("Processing Command: %s, PSID: %s, MID: %s\n", command, psid, mid)
-	fmt.Printf("token: %s\n", token)
 
 	switch command {
 	case "GET_STARTED":
@@ -61,7 +60,8 @@ func ProcessTextMessageSent(command, psid, mid, token string) {
 	case "REPORT_LOG_DAY":
 		expenses, err := api.GetExpensesByUserAndRange(psid, "day")
 		if err != nil {
-			fmt.Println("Error fetching items")
+			fmt.Printf("Error fetching daily expenses for user %s: %v\n", psid, err)
+			utils.SendTextMessage("Sorry, I couldn't fetch your expense report at the moment. Please try again later.", psid, token)
 			return
 		}
 
@@ -70,7 +70,8 @@ func ProcessTextMessageSent(command, psid, mid, token string) {
 	case "REPORT_LOG_WEEK":
 		expenses, err := api.GetExpensesByUserAndRange(psid, "week")
 		if err != nil {
-			fmt.Println("Error fetching items")
+			fmt.Printf("Error fetching weekly expenses for user %s: %v\n", psid, err)
+			utils.SendTextMessage("Sorry, I couldn't fetch your expense report at the moment. Please try again later.", psid, token)
 			return
 		}
 
@@ -79,7 +80,8 @@ func ProcessTextMessageSent(command, psid, mid, token string) {
 	case "REPORT_LOG_MONTH":
 		expenses, err := api.GetExpensesByUserAndRange(psid, "month")
 		if err != nil {
-			fmt.Println("Error fetching items")
+			fmt.Printf("Error fetching monthly expenses for user %s: %v\n", psid, err)
+			utils.SendTextMessage("Sorry, I couldn't fetch your expense report at the moment. Please try again later.", psid, token)
 			return
 		}
 
@@ -88,7 +90,8 @@ func ProcessTextMessageSent(command, psid, mid, token string) {
 	case "VIEW_PENDING_PAYMENTS_MESSAGE":
 		reminders, err := api.GetReminders(psid, "pending")
 		if err != nil {
-			fmt.Println("Error fetching items")
+			fmt.Printf("Error fetching pending reminders for user %s: %v\n", psid, err)
+			utils.SendTextMessage("Sorry, I couldn't fetch your payment reminders at the moment. Please try again later.", psid, token)
 			return
 		}
 		report := utils.GetRemindersReport(reminders)
@@ -96,23 +99,36 @@ func ProcessTextMessageSent(command, psid, mid, token string) {
 	case "VIEW_ACCOMPLISHED_PAYMENTS_MESSAGE":
 		reminders, err := api.GetReminders(psid, "completed")
 		if err != nil {
-			fmt.Println("Error fetching items")
+			fmt.Printf("Error fetching accomplished reminders for user %s: %v\n", psid, err)
+			utils.SendTextMessage("Sorry, I couldn't fetch your payment reminders at the moment. Please try again later.", psid, token)
 			return
 		}
 		report := utils.GetRemindersReport(reminders)
 		utils.SendTextMessage(report, psid, token)
 	case "SET_REPORT_SCHED_MESSAGE":
-		message := "You can now receive notifications Daily/Weekly/Monthly."
+		message := "The report scheduling feature is not yet implemented. Please check back later!"
 		utils.SendTextMessage(message, psid, token)
 	case "RESET_LOGS_MESSAGE":
-		message := "Logs have been permanently resetted"
+		errExpenses := api.DeleteExpensesByUser(psid)
+		if errExpenses != nil {
+			fmt.Printf("Error deleting expenses for user %s: %v\n", psid, errExpenses)
+			// Optionally, notify the user about the error, or log it for monitoring
+		}
+
+		errReminders := api.DeleteRemindersByUser(psid)
+		if errReminders != nil {
+			fmt.Printf("Error deleting reminders for user %s: %v\n", psid, errReminders)
+			// Optionally, notify the user about the error, or log it for monitoring
+		}
+
+		message := "All your expense and reminder logs have been reset."
 		utils.SendTextMessage(message, psid, token)
 	case "SET_REMINDER_MESSAGE":
 		message := "Please set the reminder in this format: \n[amount] to [name]:[gcash number] on [month/day/year]\n(e.g. 200.00 to mark:09565546*** on 04/25/2025)"
 		utils.SendTextMessage(message, psid, token)
 		userState[psid] = "RECORDING_REMINDER"
 	case "SUBSCRIPTION_STATUS_MESSAGE":
-		message := "You can now receive notifications."
+		message := "The subscription status feature is not yet implemented. Please check back later!"
 		utils.SendTextMessage(message, psid, token)
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
@@ -125,20 +141,26 @@ func ProcessTextMessageReceived(message, psid, mid, token string) {
 		switch state {
 		case "RECORDING_EXPENSE_LOG":
 			if utils.IsExpenseLogFormatCorrect(message) {
-				message_ := fmt.Sprintf("Got it! You spent ₱%v on %v", message, currentTime.Format("Mon Jan 2 15:04:05 MST 2006"))
-				utils.SendTextMessage(message_, psid, token)
 				amount, category, err := utils.GetExpenseDataFromMessage(message)
 				if err != nil {
-					fmt.Println("Error:", err)
-				} else {
-					fmt.Printf("You spent ₱%.2f on %s\n", amount, category)
-					err := api.SaveExpense(amount, category, psid)
-					if err != nil {
-						fmt.Println("Failed to save expense:", err)
-					} else {
-						fmt.Println("Expense saved successfully!")
-					}
+					fmt.Printf("Error parsing expense data for user %s: %v\n", psid, err)
+					utils.SendTextMessage("There was an issue parsing your expense. Please ensure you're using the format: [amount] for [item/service]", psid, token)
+					userState[psid] = "WAITING..." // Reset state as format was correct
+					return
 				}
+
+				err = api.SaveExpense(amount, category, psid)
+				if err != nil {
+					fmt.Printf("Error saving expense for user %s: %v\n", psid, err)
+					utils.SendTextMessage("Sorry, I couldn't save your expense. Please try again later.", psid, token)
+					userState[psid] = "WAITING..." // Reset state as format was correct
+					return
+				}
+				currentTime = time.Now()
+				message_ := fmt.Sprintf("Got it! You spent ₱%.2f on %s on %s", amount, category, currentTime.Format("Jan 2, 2006 at 3:04 PM"))
+				utils.SendTextMessage(message_, psid, token)
+				fmt.Printf("Expense saved for user %s: ₱%.2f on %s\n", psid, amount, category)
+				userState[psid] = "WAITING..."
 			} else {
 				message = "Invalid Format. Please try again."
 				utils.SendTextMessage(message, psid, token)
@@ -147,20 +169,25 @@ func ProcessTextMessageReceived(message, psid, mid, token string) {
 			}
 		case "RECORDING_REMINDER":
 			if utils.IsReminderLogFormatCorrect(message) {
-				message_ := fmt.Sprintf("Reminder: Pay %v", message)
-				utils.SendTextMessage(message_, psid, token)
 				amount, accountName, gcashNumber, dueDate, err := utils.GetReminderDataFromMessage(message)
 				if err != nil {
-					fmt.Println("Error:", err)
-				} else {
-					fmt.Printf("You need to send ₱%.2f to %s (%s) on %s\n", amount, accountName, gcashNumber, dueDate.Format("01/02/2006"))
-					err := api.SaveReminder(psid, amount, accountName, gcashNumber, dueDate)
-					if err != nil {
-						fmt.Println("Failed to save reminder:", err)
-					} else {
-						fmt.Println("Reminder saved successfully! You will be notified.")
-					}
+					fmt.Printf("Error parsing reminder data for user %s: %v\n", psid, err)
+					utils.SendTextMessage("There was an issue parsing your reminder. Please ensure you're using the format: [amount] to [name]:[gcash number] on [month/day/year]", psid, token)
+					userState[psid] = "WAITING..." // Reset state as format was correct
+					return
 				}
+
+				err = api.SaveReminder(psid, amount, accountName, gcashNumber, dueDate)
+				if err != nil {
+					fmt.Printf("Error saving reminder for user %s: %v\n", psid, err)
+					utils.SendTextMessage("Sorry, I couldn't save your reminder. Please try again later.", psid, token)
+					userState[psid] = "WAITING..." // Reset state as format was correct
+					return
+				}
+				message_ := fmt.Sprintf("Reminder: Pay ₱%.2f to %s (%s) on %s", amount, accountName, gcashNumber, dueDate.Format("01/02/2006"))
+				utils.SendTextMessage(message_, psid, token)
+				fmt.Printf("Reminder saved for user %s: ₱%.2f to %s (%s) on %s\n", psid, amount, accountName, gcashNumber, dueDate.Format("01/02/2006"))
+				userState[psid] = "WAITING..."
 			} else {
 				message = "Invalid Format. Follow the format or verify the Gcash Number. Please try again"
 				utils.SendTextMessage(message, psid, token)
