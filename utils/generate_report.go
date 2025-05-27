@@ -31,25 +31,30 @@ func GetExpenseReport(expenses []models.ExpensesLog, rangeDay string) string {
 	return report
 }
 
-func GetRemindersReport(reminders []models.RemindersLog) string {
-	report := "Reminders Report\n"
-	report += "-----------------------------\n"
+func GetRemindersReport(reminders []models.RemindersLog) []templates.Template {
+	var elements []templates.Template
 
 	if len(reminders) == 0 {
-		report += "No reminders found.\n"
-		return report
+		return elements // Return empty slice
 	}
 
-	for i, reminder := range reminders {
-		report += fmt.Sprintf(
-			"%d. ₱%.2f to %s (Account Number: %s) - Due: %s\n",
-			i+1,
-			reminder.Amount,
-			reminder.Rececipient,
-			reminder.GcashNumber,
-			reminder.DueDate.Format("2006-01-02"),
-		)
+	for _, reminder := range reminders {
+		title := fmt.Sprintf("Pay ₱%.2f to %s", reminder.Amount, reminder.Rececipient)
+		subtitle := fmt.Sprintf("Due: %s | Gcash: %s", reminder.DueDate.Format("Jan 2, 2006"), reminder.GcashNumber)
+		// ImageURL can be omitted or set to a default Gcash logo if available
+		element := templates.Template{
+			Title:    title,
+			Subtitle: subtitle,
+			Buttons: []templates.Button{
+				{
+					Type:  "web_url",
+					URL:   "gcash://", // Generic GCash deep link
+					Title: "Pay with Gcash",
+				},
+			},
+		}
+		elements = append(elements, element)
 	}
 
-	return report
+	return elements
 }

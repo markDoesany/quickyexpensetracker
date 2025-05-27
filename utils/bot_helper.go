@@ -17,8 +17,18 @@ func ComputeHMAC(message []byte, secret string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-func SendGenerateRequest(elements interface{}, PSID string, pageAccessToken string) error {
+func SendGenerateRequest(elements []templates.Template, PSID string, pageAccessToken string) error {
 	fmt.Println("Sending Generate Request")
+
+	if len(elements) == 0 {
+		return fmt.Errorf("elements slice cannot be empty when calling SendGenerateRequest")
+	}
+
+	var interfaceSlice []interface{} = make([]interface{}, len(elements))
+	for i, d := range elements {
+		interfaceSlice[i] = d
+	}
+
 	payload := templates.RequestPayload{
 		Recipient: templates.Recipient{ID: PSID},
 		Message: templates.Message{
@@ -26,7 +36,7 @@ func SendGenerateRequest(elements interface{}, PSID string, pageAccessToken stri
 				Type: "template",
 				Payload: templates.AttachmentPayload{
 					TemplateType: "generic",
-					Elements:     []interface{}{elements},
+					Elements:     interfaceSlice,
 				},
 			},
 		},

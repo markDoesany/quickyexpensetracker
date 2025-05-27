@@ -49,12 +49,14 @@ var SubMenuTemplate = map[int]Template{
 		},
 	},
 	2: {
-		Title:    "Set Report Schedule",
-		Subtitle: "Choose when you want to receive your report",
+		Title:    "Manage Report Schedule", // Updated Title for clarity
+		Subtitle: "Choose an action for your report schedule", // Updated Subtitle
 		Buttons: []Button{
-			{Type: "postback", Title: "Daily", Payload: "SET_REPORT_DAILY"},
-			{Type: "postback", Title: "Weekly", Payload: "SET_REPORT_WEEKLY"},
-			{Type: "postback", Title: "Monthly", Payload: "SET_REPORT_MONTHLY"},
+			{Type: "postback", Title: "Schedule Daily Report", Payload: "SCHEDULE_REPORT_DAILY_SETUP"},
+			{Type: "postback", Title: "Schedule Weekly Report", Payload: "SCHEDULE_REPORT_WEEKLY_SETUP"},
+			{Type: "postback", Title: "Schedule Monthly Report", Payload: "SCHEDULE_REPORT_MONTHLY_SETUP"},
+			{Type: "postback", Title: "View Current Schedule", Payload: "VIEW_SCHEDULED_REPORT"},
+			{Type: "postback", Title: "Unschedule Reports", Payload: "UNSCHEDULE_REPORTS"},
 		},
 	},
 }
