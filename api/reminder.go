@@ -56,3 +56,16 @@ func UpdateReminderStatus(reminderID string, newStatus string) error {
 	result := database.DB.Model(&models.RemindersLog{}).Where("id = ?", reminderIDUint).Update("status", newStatus)
 	return result.Error
 }
+
+func GetDueReminders(targetDate time.Time) ([]models.RemindersLog, error) {
+	var dueReminders []models.RemindersLog
+
+	startOfDay := time.Date(targetDate.Year(), targetDate.Month(), targetDate.Day(), 0, 0, 0, 0, targetDate.Location())
+	endOfDay := time.Date(targetDate.Year(), targetDate.Month(), targetDate.Day(), 23, 59, 59, 999999999, targetDate.Location())
+
+	result := database.DB.Where("status = ?", "pending").
+		Where("due_date >= ? AND due_date <= ?", startOfDay, endOfDay).
+		Find(&dueReminders)
+
+	return dueReminders, result.Error
+}

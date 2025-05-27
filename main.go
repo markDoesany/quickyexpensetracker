@@ -4,9 +4,11 @@ import (
 	"log"
 	"quickyexpensetracker/database"
 	"quickyexpensetracker/handlers"
+	"quickyexpensetracker/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/robfig/cron/v3"
 )
 
 func main() {
@@ -15,6 +17,14 @@ func main() {
 		log.Fatalf("Err loading .env file: %v", err)
 	}
 	database.InitDB()
+
+	c := cron.New()
+	_, err = c.AddFunc("@daily", services.SendDueReminderNotifications)
+	if err != nil {
+		log.Fatalf("Could not add 'SendDueReminderNotifications' cron job: %v", err)
+	}
+	c.Start()
+	log.Println("Cron scheduler started.")
 
 	router := gin.Default()
 	router.GET("/", handlers.HandleVerification)
