@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"quickyexpensetracker/models"
+	"quickyexpensetracker/templates"
 )
 
 func GetExpenseReport(expenses []models.ExpensesLog, rangeDay string) string {
@@ -31,25 +32,46 @@ func GetExpenseReport(expenses []models.ExpensesLog, rangeDay string) string {
 	return report
 }
 
-func GetRemindersReport(reminders []models.RemindersLog) string {
-	report := "Reminders Report\n"
-	report += "-----------------------------\n"
+func GetRemindersReport(reminders []models.RemindersLog) []templates.Template {
+	var reportElements []templates.Template
 
 	if len(reminders) == 0 {
-		report += "No reminders found.\n"
-		return report
+		element := templates.Template{
+			Title:    "Reminders Report",
+			Subtitle: "No pending reminders found.",
+		}
+		reportElements = append(reportElements, element)
+		return reportElements
 	}
 
-	for i, reminder := range reminders {
-		report += fmt.Sprintf(
-			"%d. ₱%.2f to %s (Account Number: %s) - Due: %s\n",
-			i+1,
+	for _, reminder := range reminders {
+		title := fmt.Sprintf("Payment to %s", reminder.Recipient)
+		subtitle := fmt.Sprintf("Amount: ₱%.2f\nGCash: %s\nDue: %s",
 			reminder.Amount,
-			reminder.Rececipient,
 			reminder.GcashNumber,
-			reminder.DueDate.Format("2006-01-02"),
-		)
+			reminder.DueDate.Format("2006-01-02"))
+
+		var buttons []templates.Button
+		if reminder.PaymentMethod == "Gcash" && reminder.Status == "pending" {
+			buttons = append(buttons, templates.Button{
+				Type:    "postback",
+				Title:   "Pay with Gcash",
+				Payload: "PAY_GCASH_" + fmt.Sprint(reminder.ID),
+			})
+			buttons = append(buttons, templates.Button{
+				Type:    "postback",
+				Title:   "Mark as Paid",
+				Payload: "MARK_AS_PAID_" + fmt.Sprint(reminder.ID),
+			})
+		}
+
+		element := templates.Template{
+			Title:    title,
+			Subtitle: subtitle,
+			Buttons:  buttons,
+		}
+		reportElements = append(reportElements, element)
 	}
 
-	return report
+	return reportElements
 }

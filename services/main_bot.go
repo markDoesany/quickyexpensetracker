@@ -5,6 +5,7 @@ import (
 	"quickyexpensetracker/api"
 	"quickyexpensetracker/templates"
 	"quickyexpensetracker/utils"
+	"strings"
 	"time"
 )
 
@@ -46,8 +47,29 @@ func ProcessMainCommand(command, psid, mid, token string) {
 	case "SET_REMINDER":
 		ProcessTextMessageSent("SET_REMINDER_MESSAGE", psid, mid, token)
 	default:
-		fmt.Printf("Unknown command: %s\n", command)
-		utils.SendGenerateRequest(templates.MenuTemplate[1], psid, token)
+		if strings.HasPrefix(command, "PAY_GCASH_") {
+			reminderID := strings.TrimPrefix(command, "PAY_GCASH_")
+			deepLink, err := api.GetGcashDeepLink(reminderID)
+			if err != nil {
+				fmt.Printf("Error getting Gcash deep link for reminder %s, user %s: %v\n", reminderID, psid, err)
+				utils.SendTextMessage("Sorry, could not retrieve Gcash link.", psid, token)
+			} else {
+				message := fmt.Sprintf("Click here to open Gcash: %s", deepLink)
+				utils.SendTextMessage(message, psid, token)
+			}
+		} else if strings.HasPrefix(command, "MARK_AS_PAID_") {
+			reminderID := strings.TrimPrefix(command, "MARK_AS_PAID_")
+			err := api.UpdateReminderStatus(reminderID, "paid")
+			if err != nil {
+				fmt.Printf("Error updating reminder status for reminder %s, user %s: %v\n", reminderID, psid, err)
+				utils.SendTextMessage("Sorry, could not update payment status.", psid, token)
+			} else {
+				utils.SendTextMessage("Payment has been marked as paid.", psid, token)
+			}
+		} else {
+			fmt.Printf("Unknown command: %s\n", command)
+			utils.SendGenerateRequest(templates.MenuTemplate[1], psid, token)
+		}
 	}
 }
 
@@ -94,8 +116,14 @@ func ProcessTextMessageSent(command, psid, mid, token string) {
 			utils.SendTextMessage("Sorry, I couldn't fetch your payment reminders at the moment. Please try again later.", psid, token)
 			return
 		}
-		report := utils.GetRemindersReport(reminders)
-		utils.SendTextMessage(report, psid, token)
+		reminderTemplates := utils.GetRemindersReport(reminders)
+		for _, tmpl := range reminderTemplates {
+			errLoop := utils.SendGenerateRequest(tmpl, psid, token) // Use errLoop to avoid conflict
+			if errLoop != nil {
+				fmt.Printf("Error sending reminder template for user %s: %v\n", psid, errLoop)
+				// Optionally, send a text message to the user about the specific failure
+			}
+		}
 	case "VIEW_ACCOMPLISHED_PAYMENTS_MESSAGE":
 		reminders, err := api.GetReminders(psid, "completed")
 		if err != nil {
@@ -177,7 +205,7 @@ func ProcessTextMessageReceived(message, psid, mid, token string) {
 					return
 				}
 
-				err = api.SaveReminder(psid, amount, accountName, gcashNumber, dueDate)
+				err = api.SaveReminder(psid, amount, accountName, gcashNumber, dueDate, "Gcash", "pending")
 				if err != nil {
 					fmt.Printf("Error saving reminder for user %s: %v\n", psid, err)
 					utils.SendTextMessage("Sorry, I couldn't save your reminder. Please try again later.", psid, token)
