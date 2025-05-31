@@ -27,6 +27,19 @@ func SaveReminder(userID string, amount float64, accountName string, gcashNumber
 	return result.Error
 }
 
+func GetReminderByID(reminderID string) (*models.RemindersLog, error) {
+	var reminder models.RemindersLog
+	reminderIDUint, err := strconv.ParseUint(reminderID, 10, 32) // Assuming ID is uint
+	if err != nil {
+		return nil, fmt.Errorf("error converting reminderID to uint: %w", err)
+	}
+	result := database.DB.First(&reminder, uint(reminderIDUint)) // Use uint for GORM
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return &reminder, nil
+}
+
 func GetReminders(userID string, status string) ([]models.RemindersLog, error) {
 	var reminders []models.RemindersLog
 

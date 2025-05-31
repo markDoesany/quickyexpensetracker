@@ -66,6 +66,17 @@ func ProcessMainCommand(command, psid, mid, token string) {
 			} else {
 				utils.SendTextMessage("Payment has been marked as paid.", psid, token)
 			}
+		} else if strings.HasPrefix(command, "VIEW_ACCOMPLISHED_DETAIL_") {
+			reminderID := strings.TrimPrefix(command, "VIEW_ACCOMPLISHED_DETAIL_")
+			reminder, err := api.GetReminderByID(reminderID)
+			if err != nil {
+				fmt.Printf("Error fetching reminder details for reminder %s, user %s: %v\n", reminderID, psid, err)
+				utils.SendTextMessage("Sorry, I couldn't find the details for that payment.", psid, token)
+			} else {
+				detailsMessage := fmt.Sprintf("Details for your payment to %s:\nAmount: ₱%.2f\nGCash: %s\nDue Date: %s\nStatus: %s",
+					reminder.Recipient, reminder.Amount, reminder.GcashNumber, reminder.DueDate.Format("2006-01-02"), reminder.Status)
+				utils.SendTextMessage(detailsMessage, psid, token)
+			}
 		} else {
 			fmt.Printf("Unknown command: %s\n", command)
 			utils.SendGenerateRequest(templates.MenuTemplate[1], psid, token)
@@ -131,14 +142,17 @@ func ProcessTextMessageSent(command, psid, mid, token string) {
 			utils.SendTextMessage("Sorry, I couldn't fetch your payment reminders at the moment. Please try again later.", psid, token)
 			return
 		}
-		report := utils.GetRemindersReport(reminders)
-		if len(report) == 0 {
+		if len(reminders) == 0 {
 			utils.SendTextMessage("You don't have any accomplished payments yet.", psid, token)
 			return
 		}
-		// Send each reminder as a separate template
-		for _, reminder := range report {
-			utils.SendGenerateRequest(reminder, psid, token)
+		// Now call GetRemindersReport only if there are reminders
+		report := utils.GetRemindersReport(reminders)
+		// Send as a carousel
+		err = utils.SendTemplateMessage(report, psid, token)
+		if err != nil {
+			fmt.Printf("Error sending accomplished payments carousel for user %s: %v\n", psid, err)
+			utils.SendTextMessage("Sorry, I couldn't display your accomplished payments at the moment.", psid, token)
 		}
 	case "SET_REPORT_SCHED_MESSAGE":
 		message := "The report scheduling feature is not yet implemented. Please check back later!"

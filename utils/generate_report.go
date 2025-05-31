@@ -37,12 +37,7 @@ func GetRemindersReport(reminders []models.RemindersLog) []templates.Template {
 	var reportElements []templates.Template
 
 	if len(reminders) == 0 {
-		element := templates.Template{
-			Title:    "Reminders Report",
-			Subtitle: "No pending reminders found.",
-		}
-		reportElements = append(reportElements, element)
-		return reportElements
+		return reportElements // or return []templates.Template{}
 	}
 
 	for _, reminder := range reminders {
@@ -63,6 +58,15 @@ func GetRemindersReport(reminders []models.RemindersLog) []templates.Template {
 				Type:    "postback",
 				Title:   "Mark as Paid",
 				Payload: "MARK_AS_PAID_" + fmt.Sprint(reminder.ID),
+			})
+		} else if reminder.Status == "completed" || reminder.Status == "paid" {
+			title = fmt.Sprintf("Accomplished: Payment to %s", reminder.Recipient)
+			// Subtitle remains the same
+			buttons = []templates.Button{} // Initialize as empty slice
+			buttons = append(buttons, templates.Button{
+				Type:    "postback",
+				Title:   "View Details",
+				Payload: fmt.Sprintf("VIEW_ACCOMPLISHED_DETAIL_%d", reminder.ID),
 			})
 		}
 
