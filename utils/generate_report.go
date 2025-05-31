@@ -75,3 +75,20 @@ func GetRemindersReport(reminders []models.RemindersLog) []templates.Template {
 
 	return reportElements
 }
+
+// GenerateExpenseSummaryMessage creates a user-friendly expense summary message.
+func GenerateExpenseSummaryMessage(frequency string, expenses []models.ExpensesLog, totalAmount float64) string {
+	// Ensure frequency string is lowercase for consistent messaging if it's used directly.
+	// Or, use a more display-friendly version if needed.
+	displayFrequency := strings.ToLower(frequency)
+	if displayFrequency == "" {
+		displayFrequency = "selected period" // Fallback for empty frequency
+	}
+
+	if len(expenses) == 0 {
+		return fmt.Sprintf("Hi! You had no expenses in the last %s.", displayFrequency)
+	}
+
+	return fmt.Sprintf("Hi! Here's your %s expense summary: You had %d transaction(s), totaling ₱%.2f.",
+		displayFrequency, len(expenses), totalAmount)
+}

@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func SaveReminder(userID string, amount float64, accountName string, gcashNumber string, dueDate time.Time, paymentMethod string, status string) error {
+func SaveReminder(userID string, amount float64, accountName string, gcashNumber string, dueDate time.Time, paymentMethod string, status string, reminderType string, frequency string) error {
 	reminder := models.RemindersLog{
 		Amount:        amount,
 		GcashNumber:   gcashNumber,
@@ -18,6 +18,8 @@ func SaveReminder(userID string, amount float64, accountName string, gcashNumber
 		Status:        status,
 		UserID:        userID,
 		Notified:      false, // Explicitly set Notified to false
+		ReminderType:  reminderType,
+		Frequency:     frequency,
 	}
 
 	result := database.DB.Create(&reminder)
@@ -74,5 +76,16 @@ func MarkReminderAsNotified(reminderID string) error {
 	}
 
 	result := database.DB.Model(&models.RemindersLog{}).Where("id = ?", reminderIDUint).Update("notified", true)
+	return result.Error
+}
+
+// UpdateReminderDueDateAndNotifiedStatus updates the 'DueDate' and 'notified' status of a specific reminder.
+func UpdateReminderDueDateAndNotifiedStatus(reminderID string, newDueDate time.Time, notified bool) error {
+	reminderIDUint, err := strconv.ParseUint(reminderID, 10, 64) // gorm.Model ID is uint
+	if err != nil {
+		return fmt.Errorf("error converting reminderID to uint: %w", err)
+	}
+
+	result := database.DB.Model(&models.RemindersLog{}).Where("id = ?", reminderIDUint).Updates(models.RemindersLog{DueDate: newDueDate, Notified: notified})
 	return result.Error
 }
