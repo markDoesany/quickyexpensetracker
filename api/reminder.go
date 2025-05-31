@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"quickyexpensetracker/database"
 	"quickyexpensetracker/models"
 	"strconv"
@@ -16,6 +17,7 @@ func SaveReminder(userID string, amount float64, accountName string, gcashNumber
 		PaymentMethod: paymentMethod,
 		Status:        status,
 		UserID:        userID,
+		Notified:      false, // Explicitly set Notified to false
 	}
 
 	result := database.DB.Create(&reminder)
@@ -54,5 +56,23 @@ func UpdateReminderStatus(reminderID string, newStatus string) error {
 	}
 
 	result := database.DB.Model(&models.RemindersLog{}).Where("id = ?", reminderIDUint).Update("status", newStatus)
+	return result.Error
+}
+
+// GetPendingUnnotifiedReminders retrieves all reminders that are pending and for which notifications have not yet been sent.
+func GetPendingUnnotifiedReminders() ([]models.RemindersLog, error) {
+	var reminders []models.RemindersLog
+	result := database.DB.Where("status = ? AND notified = ?", "pending", false).Find(&reminders)
+	return reminders, result.Error
+}
+
+// MarkReminderAsNotified updates the 'notified' status of a specific reminder to true.
+func MarkReminderAsNotified(reminderID string) error {
+	reminderIDUint, err := strconv.ParseUint(reminderID, 10, 64) // gorm.Model ID is uint
+	if err != nil {
+		return fmt.Errorf("error converting reminderID to uint: %w", err)
+	}
+
+	result := database.DB.Model(&models.RemindersLog{}).Where("id = ?", reminderIDUint).Update("notified", true)
 	return result.Error
 }
