@@ -212,7 +212,7 @@ func ProcessTextMessageReceived(message, psid, mid, token string) {
 					return
 				}
 
-				err = api.SaveReminder(psid, amount, accountName, gcashNumber, dueDate, "Gcash", "pending")
+				err = api.SaveReminder(psid, amount, accountName, gcashNumber, dueDate, "Gcash", "pending", "payment", "once")
 				if err != nil {
 					fmt.Printf("Error saving reminder for user %s: %v\n", psid, err)
 					utils.SendTextMessage("Sorry, I couldn't save your reminder. Please try again later.", psid, token)

@@ -28,7 +28,7 @@ func main() {
 
 		// Then, check periodically.
 		// For example, check every 1 hour. Adjust the duration as needed.
-		ticker := time.NewTicker(1 * time.Hour)
+		ticker := time.NewTicker(10 * time.Second)
 		defer ticker.Stop() // Ensure the ticker is stopped if the goroutine exits
 
 		for range ticker.C {
