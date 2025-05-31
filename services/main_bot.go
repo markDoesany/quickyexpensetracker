@@ -132,7 +132,14 @@ func ProcessTextMessageSent(command, psid, mid, token string) {
 			return
 		}
 		report := utils.GetRemindersReport(reminders)
-		utils.SendTextMessage(report, psid, token)
+		if len(report) == 0 {
+			utils.SendTextMessage("You don't have any accomplished payments yet.", psid, token)
+			return
+		}
+		// Send each reminder as a separate template
+		for _, reminder := range report {
+			utils.SendGenerateRequest(reminder, psid, token)
+		}
 	case "SET_REPORT_SCHED_MESSAGE":
 		message := "The report scheduling feature is not yet implemented. Please check back later!"
 		utils.SendTextMessage(message, psid, token)
