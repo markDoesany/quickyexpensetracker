@@ -23,4 +23,6 @@ type RemindersLog struct {
 	PaymentMethod string    `json:"payment_method"`
 	UserID        string    `json:"user_id"`
 	Notified      bool      `json:"notified"` // New field
+	ReminderType  string    `json:"reminder_type"`
+	Frequency     string    `json:"frequency"`
 }
